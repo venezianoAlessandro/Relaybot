@@ -15,7 +15,9 @@ void loop() {
   for(int pwn = 0; pwn < 256; pwn++) {
     analogWrite(MOTOR_A_1, 0); // Set pin 10 to HIGH (full speed)
     analogWrite(MOTOR_A_2, pwn); // Set pin 11 to HIGH (full speed)
-    Millis(1000); // Wait for 1 second 
+    if (millis() < 1000) { // added a function to millis() to wait for 1 second before the next iteration
+      delay(1000); // wait for 1 second 
+    }
   }
   analogWrite(MOTOR_A_1, 0); // Set pin 10 to HIGH (full speed)
   analogWrite(MOTOR_A_2, 0); // Set pin 11 to HIGH (full speed)
@@ -24,7 +26,9 @@ void loop() {
   analogWrite(MOTOR_A_1, 0); // Set pin 10 to LOW (stop)
   analogWrite(MOTOR_A_2, 0); // Set pin 11 to LOW (stop)
 //wait 10 seconds
-  Millis(1000); // Wait for 1 seconds
+  if (millis() < 1000) { // added a function to millis() to wait for 1 second before the next iteration
+    delay(1000); // wait for 1 second
+  }
 }
 
 void motorBackward(int speed) {
