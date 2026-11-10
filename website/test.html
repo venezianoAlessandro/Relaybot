@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="container mt-4">
+
+        <div id="header">
+            <h1>Relay Bot Test</h1>
+        </div>
+
+        <div id="switch_buttons">
+
+            <button type="button" class="btn btn-primary">
+                <svg width="16" height="10" aria-hidden="true">
+                <i class="bi bi-arrow-left"></i> </svg>
+            </button>
+
+            <button type="button" class="btn btn-primary">
+                <svg width="16" height="10" aria-hidden="true"> 
+                <i class="bi bi-arrow-right"></i></svg>
+            </button>
+
+        </div>
+
+        <div id="currentPhase">
+
+            <h2>Current Phase: ur mama</h2>  <!-- this will be show current phase of the relay bot -->
+
+        </div>
+
+        <div id="main_stuffs">
+
+<!-- below here is the button from where you either connect the relayBots to the arduino 
+ 
+(Tiago) my vision:
+
+- the 3 relay bots connect to the main arduino private network
+- the laptop hosting the website for the twin relayBot will connect to the arduino private network
+- the main arduino will send the inforamtion to the laptop and then show on the website
+
+-->
+
+        </div>
+
+                <div id="start_button">
+
+            <button type="button" class="btn btn-primary" id="startBtn">
+                Click here to connect to network
+            </button>
+
+            <!-- Here from my vision should connect the RelayBot to our arduino so we can make a twin 
+            should this also start the individual relay bot or only show the information?
+            -->
+
+        </div>
+
+    </div>
+
+    <!-- Bootstrap JavaScript -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+</body>
+</html>
