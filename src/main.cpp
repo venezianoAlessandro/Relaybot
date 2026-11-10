@@ -1,6 +1,6 @@
 #include <Arduino.h>
-const int MOTOR_A_1 = 10; // Pin for Motor A
-const int MOTOR_A_2 = 11; // Pin for Motor A
+const int MOTOR_A_1 = 3; // Pin for Motor A
+const int MOTOR_A_2 = 5; // Pin for Motor A
 
 void setup() {
   // Initialize serial communication at 9600 bits per second:
@@ -15,16 +15,16 @@ void loop() {
   for(int pwn = 0; pwn < 256; pwn++) {
     analogWrite(MOTOR_A_1, 0); // Set pin 10 to HIGH (full speed)
     analogWrite(MOTOR_A_2, pwn); // Set pin 11 to HIGH (full speed)
-    delay(100); // Wait for 100 milliseconds
+    Millis(1000); // Wait for 1 second 
   }
-  analogWrite(MOTOR_A_1, 64); // Set pin 10 to HIGH (full speed)
-  analogWrite(MOTOR_A_2, -64); // Set pin 11 to HIGH (full speed)
+  analogWrite(MOTOR_A_1, 0); // Set pin 10 to HIGH (full speed)
+  analogWrite(MOTOR_A_2, 0); // Set pin 11 to HIGH (full speed)
 
   //stop
   analogWrite(MOTOR_A_1, 0); // Set pin 10 to LOW (stop)
   analogWrite(MOTOR_A_2, 0); // Set pin 11 to LOW (stop)
 //wait 10 seconds
-  delay(1000); // Wait for 1 seconds
+  Millis(1000); // Wait for 1 seconds
 }
 
 void motorBackward(int speed) {
