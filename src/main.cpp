@@ -13,6 +13,8 @@ const int Lwheel = 3; // A3 for forward left wheel
   const int baseLeftBackSpeed = 233;
   const int baseRightBackSpeed = 190;
 
+  unsigned long startTime = 0; // Start time in milliseconds
+
 
 
 void setup() {
@@ -23,27 +25,24 @@ pinMode(Rwheel, OUTPUT);
 pinMode(LwheelBack, OUTPUT);
 pinMode(RwheelBack, OUTPUT);
 
+startTime = millis();
 }
 
 void loop() {
 
+unsigned long currentTime = millis();
+
 analogWrite(Lwheel, 0);
 analogWrite(Rwheel, 0);
 
-delay(1000);
-
 analogWrite(Lwheel, baseLeftSpeed);
 analogWrite(Rwheel, baseRightSpeed);
-
-delay (3000);
 
 analogWrite(Lwheel, 0);
 analogWrite(Rwheel, 0);
 
 analogWrite(LwheelBack, baseLeftBackSpeed);
 analogWrite(RwheelBack, baseRightBackSpeed);
-
-delay (3000);
 
 analogWrite(LwheelBack, 0);
 analogWrite(RwheelBack, 0);
