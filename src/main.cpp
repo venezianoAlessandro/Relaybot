@@ -7,11 +7,11 @@ const int Lwheel = 3; // A3 for forward left wheel
   const int RwheelBack = 9; //assumption it's the back right wheel?
 
 
-  const int baseLeftSpeed = 194;
-  const int baseRightSpeed = 200;
+  const float baseLeftSpeed = 194;
+  const float baseRightSpeed = 200;
 
-  const int baseLeftBackSpeed = 213;
-  const int baseRightBackSpeed = 190;
+  const float baseLeftBackSpeed = 213;
+  const float baseRightBackSpeed = 190;
 
   unsigned long startTime = 0; // Start time in milliseconds
 
