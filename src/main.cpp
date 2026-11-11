@@ -26,14 +26,15 @@ int adjustedRightSpeed = 200;
 
 // PI controller
 float Kp = -300;
-float Ki = 0.5;
+float Ki = -9;
 
 float integral = 0;
 float filteredError = 0;
 
 // Adaptive calibration
 float learnedCorrection = 0;
-const float learningRate = 0.05;
+const float learningRate = 0.02;
+const float maxLearnedCorrection = 50.0;
 
 // Movement timing
 unsigned long startTime = 0;
@@ -53,6 +54,7 @@ unsigned long currentDuration = 0;
 void stopMotors();
 void forward(unsigned long duration, int speed);
 void updateMotors();
+void setMotorSpeeds(float correction);
 
 void setup() {
   pinMode(leftFwd, OUTPUT);
@@ -63,7 +65,7 @@ void setup() {
   pinMode(R1, INPUT);
   pinMode(R2, INPUT);
 
-  Serial.begin(9600);
+  Serial.begin(115200);
   stopMotors();
 }
 
@@ -72,6 +74,21 @@ void stopMotors() {
   analogWrite(leftBack, 0);
   analogWrite(rightFwd, 0);
   analogWrite(rightBack, 0);
+}
+
+void setMotorSpeeds(float correction) {
+  int leftSpeed = constrain(
+    currentSpeed - correction, 0, 255
+  );
+
+  adjustedRightSpeed = constrain(
+    currentSpeed + correction, 0, 255
+  );
+
+  analogWrite(leftFwd, leftSpeed);
+  analogWrite(leftBack, 0);
+  analogWrite(rightFwd, 0);
+  analogWrite(rightBack, adjustedRightSpeed);
 }
 
 void forward(unsigned long duration, int speed) {
@@ -101,18 +118,7 @@ void forward(unsigned long duration, int speed) {
   moving = true;
 
   // Start using the previous calibration
-  int leftSpeed = constrain(
-    speed - learnedCorrection, 0, 255
-  );
-
-  adjustedRightSpeed = constrain(
-    speed + learnedCorrection, 0, 255
-  );
-
-  analogWrite(leftFwd, leftSpeed);
-  analogWrite(leftBack, 0);
-  analogWrite(rightFwd, 0);
-  analogWrite(rightBack, adjustedRightSpeed);
+  setMotorSpeeds(learnedCorrection);
 }
 
 void updateMotors() {
@@ -156,32 +162,31 @@ void updateMotors() {
     integral = constrain(integral, -100.0, 100.0);
 
     float correction = Kp * filteredError + Ki * integral;
-
-    // Learn gradually from the remaining speed difference
-    learnedCorrection += learningRate * filteredError;
-    learnedCorrection = constrain(
-      learnedCorrection, -60.0, 60.0
-    );
+    correction = constrain(correction, -80.0, 80.0);
 
     // Combine learned and dynamic correction
-    float totalCorrection = learnedCorrection + correction;
-    totalCorrection = constrain(
-      totalCorrection, -80.0, 80.0
+    float totalCorrection = constrain(
+      learnedCorrection + correction, -80.0, 80.0
     );
 
     // Clear: Drive Forward with active encoder speed correction
-    int leftSpeed = constrain(
-      currentSpeed - totalCorrection, 0, 255
-    );
+    setMotorSpeeds(totalCorrection);
 
-    adjustedRightSpeed = constrain(
-      currentSpeed + totalCorrection, 0, 255
-    );
+    // Learn only when measurements are meaningful
+    if (leftPulses + rightPulses >= 4 &&
+        abs(totalCorrection) < 75.0) {
 
-    analogWrite(leftFwd, leftSpeed);
-    analogWrite(leftBack, 0);
-    analogWrite(rightFwd, 0);
-    analogWrite(rightBack, adjustedRightSpeed);
+      // Learn in the same direction as the PI correction
+      float learningAdjustment =
+        learningRate * Kp * filteredError;
+
+      learnedCorrection += learningAdjustment;
+      learnedCorrection = constrain(
+        learnedCorrection,
+        -maxLearnedCorrection,
+        maxLearnedCorrection
+      );
+    }
 
     // Diagnostic output
     Serial.print("L pulses: ");
@@ -189,13 +194,11 @@ void updateMotors() {
     Serial.print(" | R pulses: ");
     Serial.print(rightPulses);
 
-    Serial.print(" | L PWM: ");
-    Serial.print(leftSpeed);
-    Serial.print(" | R PWM: ");
-    Serial.print(adjustedRightSpeed);
-
     Serial.print(" | Error: ");
     Serial.print(filteredError);
+
+    Serial.print(" | PI: ");
+    Serial.print(correction);
 
     Serial.print(" | Learned: ");
     Serial.println(learnedCorrection);
@@ -209,7 +212,7 @@ void loop() {
   updateMotors();
 
   if (!moving && !waiting) {
-    forward(30000, 200);
+    forward(3000, 200);
     waiting = true;
   }
 
