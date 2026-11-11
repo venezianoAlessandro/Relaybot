@@ -1,16 +1,17 @@
+
 #include <Arduino.h>
 
 // Forward pins
 const int leftFwd = 5;    // B1 fwd
-const int rightFwd = 3;   // A2 fwd 
+const int rightFwd = 6;   // A2 fwd (swapped from 3 to 6)
 
-// Reverse
+// Reverse / Rotation pins
 const int leftBack = 9;   // B2 back
-const int rightBack = 6;  // A1 back 
+const int rightBack = 3;  // A1 back (swapped from 6 to 3)
 
 // MH Sensors (R1 = Right, R2 = Left)
-const int R1 = 10; 
-const int R2 = 11; 
+const int R1 = 10;
+const int R2 = 11;
 
 // Variables to track sensor states and count encoder pulses
 int lastRightSensor = HIGH;
@@ -19,55 +20,112 @@ long rightPulses = 0;
 long leftPulses = 0;
 
 // Base forward speeds and dynamic right speed adjustment
-const int baseLeftSpeed = 255;
+const int baseLeftSpeed = 200;
 const int baseRightSpeed = 200;
 int adjustedRightSpeed = 200;
 
-// PID parameters
-float Kp = 8.0;
-float Ki = 0.4;
-float Kd = 1.5;
+// PI controller
+float Kp = -250;
+float Ki = 0.2;
 
-float error = 0;
-float previousError = 0;
 float integral = 0;
 float filteredError = 0;
-float correction = 0;
 
-// Motor speed control
-int leftSpeed = 0;
-int rightSpeed = 0;
-int targetLeftSpeed = baseLeftSpeed;
-int targetRightSpeed = baseRightSpeed;
+// Adaptive calibration
+float learnedCorrection = 0;
+const float learningRate = 0.05;
 
-// Timing
-unsigned long lastPIDTime = 0;
-unsigned long lastMotorTime = 0;
-unsigned long lastPrintTime = 0;
+// Movement timing
+unsigned long startTime = 0;
+unsigned long lastUpdate = 0;
+unsigned long stopTime = 0;
 
-const unsigned long PID_INTERVAL = 150;
-const unsigned long MOTOR_INTERVAL = 20;
+const unsigned long updateInterval = 100;
+const unsigned long pauseDuration = 1000;
 
-// Encoder tracking
-long previousLeftPulses = 0;
-long previousRightPulses = 0;
+bool moving = false;
+bool waiting = false;
+
+int currentSpeed = 0;
+unsigned long currentDuration = 0;
+
+// Function declarations
+void stopMotors();
+void forward(unsigned long duration, int speed);
+void updateMotors();
 
 void setup() {
   pinMode(leftFwd, OUTPUT);
   pinMode(rightFwd, OUTPUT);
   pinMode(leftBack, OUTPUT);
   pinMode(rightBack, OUTPUT);
-  
+
   pinMode(R1, INPUT);
   pinMode(R2, INPUT);
-  Serial.begin(9600);
 
+  Serial.begin(9600);
+  stopMotors();
+}
+
+void stopMotors() {
+  analogWrite(leftFwd, 0);
   analogWrite(leftBack, 0);
+  analogWrite(rightFwd, 0);
   analogWrite(rightBack, 0);
 }
 
-void loop() {
+void forward(unsigned long duration, int speed) {
+  if (moving) return;
+
+  speed = constrain(speed, 0, 255);
+
+  if (speed == 0 || duration == 0) {
+    stopMotors();
+    return;
+  }
+
+  currentSpeed = speed;
+  currentDuration = duration;
+
+  // Reset PI but preserve learned calibration
+  integral = 0;
+  filteredError = 0;
+  rightPulses = 0;
+  leftPulses = 0;
+
+  lastRightSensor = digitalRead(R1);
+  lastLeftSensor = digitalRead(R2);
+
+  startTime = millis();
+  lastUpdate = startTime;
+  moving = true;
+
+  // Start using the previous calibration
+  int leftSpeed = constrain(
+    speed - learnedCorrection, 0, 255
+  );
+
+  adjustedRightSpeed = constrain(
+    speed + learnedCorrection, 0, 255
+  );
+
+  analogWrite(leftFwd, leftSpeed);
+  analogWrite(leftBack, 0);
+  analogWrite(rightFwd, 0);
+  analogWrite(rightBack, adjustedRightSpeed);
+}
+
+void updateMotors() {
+  if (!moving) return;
+
   unsigned long now = millis();
+
+  if (now - startTime >= currentDuration) {
+    stopMotors();
+    moving = false;
+    stopTime = now;
+    return;
+  }
 
   int rightSensor = digitalRead(R1);
   int leftSensor = digitalRead(R2);
@@ -76,6 +134,7 @@ void loop() {
   if (rightSensor == LOW && lastRightSensor == HIGH) {
     rightPulses++;
   }
+
   if (leftSensor == LOW && lastLeftSensor == HIGH) {
     leftPulses++;
   }
@@ -83,93 +142,84 @@ void loop() {
   lastRightSensor = rightSensor;
   lastLeftSensor = leftSensor;
 
-  // PID speed correction
-  if (now - lastPIDTime >= PID_INTERVAL) {
-    lastPIDTime = now;
-
-    long leftDelta = leftPulses - previousLeftPulses;
-    long rightDelta = rightPulses - previousRightPulses;
-
-    previousLeftPulses = leftPulses;
-    previousRightPulses = rightPulses;
+  if (now - lastUpdate >= updateInterval) {
+    lastUpdate = now;
 
     // Calculate wheel speed difference
-    error = leftDelta - rightDelta;
+    float error = leftPulses - rightPulses;
 
-    // Filter sudden encoder fluctuations
-    filteredError = 0.6 * filteredError + 0.4 * error;
+    // Smooth the error
+    filteredError = 0.7 * filteredError + 0.3 * error;
 
-    // PID calculations
+    // PI correction
     integral += filteredError;
     integral = constrain(integral, -100.0, 100.0);
 
-    float derivative = filteredError - previousError;
+    float correction = Kp * filteredError + Ki * integral;
 
-    correction = Kp * filteredError
-               + Ki * integral
-               + Kd * derivative;
+    // Learn gradually from the remaining speed difference
+    learnedCorrection += learningRate * filteredError;
+    learnedCorrection = constrain(
+      learnedCorrection, -60.0, 60.0
+    );
 
-    correction = constrain(correction, -90.0, 90.0);
-
-    previousError = filteredError;
+    // Combine learned and dynamic correction
+    float totalCorrection = learnedCorrection + correction;
+    totalCorrection = constrain(
+      totalCorrection, -80.0, 80.0
+    );
 
     // Clear: Drive Forward with active encoder speed correction
-    targetLeftSpeed = constrain(
-      baseLeftSpeed - correction, 0, 255
+    int leftSpeed = constrain(
+      currentSpeed - totalCorrection, 0, 255
     );
 
     adjustedRightSpeed = constrain(
-      baseRightSpeed + correction, 0, 255
+      currentSpeed + totalCorrection, 0, 255
     );
-
-    targetRightSpeed = adjustedRightSpeed;
-  }
-
-  // Smooth motor acceleration and deceleration
-  if (now - lastMotorTime >= MOTOR_INTERVAL) {
-    lastMotorTime = now;
-
-    const int maxStep = 5;
-
-    if (leftSpeed < targetLeftSpeed) {
-      leftSpeed = min(leftSpeed + maxStep, targetLeftSpeed);
-    }
-    else if (leftSpeed > targetLeftSpeed) {
-      leftSpeed = max(leftSpeed - maxStep, targetLeftSpeed);
-    }
-
-    if (rightSpeed < targetRightSpeed) {
-      rightSpeed = min(rightSpeed + maxStep, targetRightSpeed);
-    }
-    else if (rightSpeed > targetRightSpeed) {
-      rightSpeed = max(rightSpeed - maxStep, targetRightSpeed);
-    }
 
     analogWrite(leftFwd, leftSpeed);
     analogWrite(leftBack, 0);
-    analogWrite(rightFwd, rightSpeed);
-    analogWrite(rightBack, 0);
-  }
+    analogWrite(rightFwd, 0);
+    analogWrite(rightBack, adjustedRightSpeed);
 
-  // Monitor PID performance
-  if (now - lastPrintTime >= 500) {
-    lastPrintTime = now;
+    // Diagnostic output
+    Serial.print("L pulses: ");
+    Serial.print(leftPulses);
+    Serial.print(" | R pulses: ");
+    Serial.print(rightPulses);
 
-    Serial.print("Left: ");
+    Serial.print(" | L PWM: ");
     Serial.print(leftSpeed);
+    Serial.print(" | R PWM: ");
+    Serial.print(adjustedRightSpeed);
 
-    Serial.print(" Right: ");
-    Serial.print(rightSpeed);
-
-    Serial.print(" Error: ");
+    Serial.print(" | Error: ");
     Serial.print(filteredError);
 
-    Serial.print(" Correction: ");
-    Serial.println(correction);
+    Serial.print(" | Learned: ");
+    Serial.println(learnedCorrection);
+
+    rightPulses = 0;
+    leftPulses = 0;
   }
 }
 
-// A right motor, A2 fwd, A1 back 
-// B left motor, B1 fwd, B2 back 
-// difference fwd (L200-R170 OR L255-R235) 
+void loop() {
+  updateMotors();
+
+  if (!moving && !waiting) {
+    forward(3000, 200);
+    waiting = true;
+  }
+
+  if (waiting && !moving &&
+      millis() - stopTime >= pauseDuration) {
+    waiting = false;
+  }
+}
+
+// A right motor, A2 fwd, A1 back
+// B left motor, B1 fwd, B2 back
+// difference fwd (L200-R170 OR L255-R235)
 // difference back L255-R-240 OR L_
