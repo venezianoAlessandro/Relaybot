@@ -10,7 +10,7 @@ const int Lwheel = 3; // A3 for forward left wheel
   const int baseLeftSpeed = 194;
   const int baseRightSpeed = 200;
 
-  const int baseLeftBackSpeed = 233;
+  const int baseLeftBackSpeed = 213;
   const int baseRightBackSpeed = 190;
 
   unsigned long startTime = 0; // Start time in milliseconds
