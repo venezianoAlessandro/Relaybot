@@ -25,8 +25,8 @@ const int baseRightSpeed = 200;
 int adjustedRightSpeed = 200;
 
 // PI controller
-float Kp = -250;
-float Ki = 0.2;
+float Kp = -300;
+float Ki = 0.5;
 
 float integral = 0;
 float filteredError = 0;
@@ -209,7 +209,7 @@ void loop() {
   updateMotors();
 
   if (!moving && !waiting) {
-    forward(3000, 200);
+    forward(30000, 200);
     waiting = true;
   }
 
