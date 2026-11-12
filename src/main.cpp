@@ -1,50 +1,41 @@
-#include <Arduino.h>
+  #include <Arduino.h>
 
-const int Lwheel = 3; // A3 for forward left wheel
-  const int Rwheel = 5; // A5 for forward right wheel
+    const int Lwheelfoward = 3; // A3 for forward left wheel
+    const int Rwheelforward = 5; // A5 for forward right wheel
 
-  const int LwheelBack = 6; // A6 is for the Left wheel to go back
-  const int RwheelBack = 9; //assumption it's the back right wheel?
-
-
-  const float baseLeftSpeed = 194;
-  const float baseRightSpeed = 200;
-
-  const float baseLeftBackSpeed = 213;
-  const float baseRightBackSpeed = 190;
-
-  unsigned long startTime = 0; // Start time in milliseconds
+    const int LwheelBack = 6; // A6 is for the Left wheel to go back
+    const int RwheelBack = 9; //assumption it's the back right wheel?
 
 
+    const float baseLeftSpeed = 194;
+    const float baseRightSpeed = 200;
 
-void setup() {
+    const float baseLeftBackSpeed = 233;
+    const float baseRightBackSpeed = 190;
 
-pinMode(Lwheel, OUTPUT);
-pinMode(Rwheel, OUTPUT);
+    unsigned long startTime = 0; // Start time in milliseconds
+    unsigned long currentTime = 0; // Current time in milliseconds
 
-pinMode(LwheelBack, OUTPUT);
-pinMode(RwheelBack, OUTPUT);
 
-startTime = millis();
-}
 
-void loop() {
+    void setup() {
 
-unsigned long currentTime = millis();
+    pinMode(Lwheelfoward, OUTPUT);
+    pinMode(Rwheelforward, OUTPUT);
 
-analogWrite(Lwheel, 0);
-analogWrite(Rwheel, 0);
+    pinMode(LwheelBack, OUTPUT);
+    pinMode(RwheelBack, OUTPUT);
 
-analogWrite(Lwheel, baseLeftSpeed);
-analogWrite(Rwheel, baseRightSpeed);
+  startTime = millis();
+  }
 
-analogWrite(Lwheel, 0);
-analogWrite(Rwheel, 0);
+  void loop() {
+  currentTime = millis();
 
-analogWrite(LwheelBack, baseLeftBackSpeed);
-analogWrite(RwheelBack, baseRightBackSpeed);
+  analogWrite(Lwheelfoward, baseLeftSpeed);
+  analogWrite(Rwheelforward, baseRightSpeed);
 
-analogWrite(LwheelBack, 0);
-analogWrite(RwheelBack, 0);
+  analogWrite(LwheelBack, baseLeftBackSpeed);
+  analogWrite(RwheelBack, baseRightBackSpeed);
 
-}
+  }
