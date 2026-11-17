@@ -21,8 +21,8 @@ const unsigned int SHORT_FORWARD_TIME = 500;
 void setMotor(byte forwardPin, byte backwardPin, int speed)
 {
     speed = constrain(speed, -255, 255);
-    analogWrite(forwardPin,  max(speed, 180));
-    analogWrite(backwardPin, max(-speed, 180));
+    analogWrite(forwardPin,  max(speed, 230));
+    analogWrite(backwardPin, max(-speed, 30));
 }
 
 void stopMotors()
