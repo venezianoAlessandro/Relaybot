@@ -82,4 +82,6 @@ void loop()
     Serial.println("6 Forward");
     moveForward(ONE_METER_TIME);  // 6. Forward 100 cm
 
+    while (true) { stopMotors(); }
+
 }
