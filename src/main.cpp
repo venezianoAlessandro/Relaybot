@@ -55,10 +55,13 @@ void turnRight(unsigned int duration) { drive(-MOTOR_SPEED, MOTOR_SPEED, duratio
 
 void setup()
 {
-    pinMode(RIGHT_FORWARD, OUTPUT);
+    Serial.begin(9600);
+    Serial.println("BOOT");   // prints every time the Nano restarts
+
+    pinMode(RIGHT_FORWARD,  OUTPUT);
     pinMode(RIGHT_BACKWARD, OUTPUT);
-    pinMode(LEFT_FORWARD, OUTPUT);
-    pinMode(LEFT_BACKWARD, OUTPUT);
+    pinMode(LEFT_FORWARD,   OUTPUT);
+    pinMode(LEFT_BACKWARD,  OUTPUT);
 
     stopMotors();
 }
@@ -66,15 +69,17 @@ void loop()
 {
     delay(2000); // time to put the robot down / get ready
 
+    Serial.println("1 Forward");
     moveForward(ONE_METER_TIME);  // 1. Forward 100 cm
+    Serial.println("2 Backward");
     moveBackward(ONE_METER_TIME); // 2. Backward 100 cm
+    Serial.println("3 Turn Left");
     turnLeft(TURN_90_TIME);       // 3. Turn left 90°
+    Serial.println("4 Forward");
     moveForward(ONE_METER_TIME);  // 4. Forward 100 cm
+    Serial.println("5 Turn Right");
     turnRight(TURN_90_TIME);      // 5. Turn right 90°
+    Serial.println("6 Forward");
     moveForward(ONE_METER_TIME);  // 6. Forward 100 cm
 
-    // Stop here forever so the routine doesn't repeat
-    while (true)
-    {
-    }
 }
