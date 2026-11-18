@@ -12,7 +12,7 @@ const byte RIGHT_SPEED = 160;
 const byte LEFT_SPEED = 180;
 
 // Calibrate these by testing on your floor
-const unsigned int ONE_METER_TIME = 5000; // ms to travel the distance
+const unsigned int ONE_METER_TIME = 2000; // ms to travel the distance
 const unsigned int TURN_90_TIME = 350;    // ms to turn 90 degrees ish
 
 // speed > 0 = forward, speed < 0 = backward, 0 = stop
