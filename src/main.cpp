@@ -9,8 +9,8 @@ const byte LEFT_BACKWARD = 9;
 const byte MOTOR_SPEED = 180; // 0-255
 
 // Calibrate these by testing on your floor
-const unsigned int ONE_METER_TIME = 1000; // ms to travel 100 cm
-const unsigned int TURN_90_TIME = 500;    // ms to turn 90 degrees
+const unsigned int ONE_METER_TIME = 5000; // ms to travel 500 cm
+const unsigned int TURN_90_TIME = 350;    // ms to turn 90 degrees ish
 
 // speed > 0 = forward, speed < 0 = backward, 0 = stop
 void setMotor(byte forwardPin, byte backwardPin, int speed)
@@ -45,7 +45,7 @@ void drive(int rightSpeed, int leftSpeed, unsigned int duration)
     setMotor(LEFT_FORWARD, LEFT_BACKWARD, leftSpeed);
     delay(duration);
     stopMotors();
-    delay(500); // short pause so the robot settles before the next move
+    delay(1000); // 1s pause so the robot settles before the next move
 }
 
 void moveForward(unsigned int duration) { drive(MOTOR_SPEED, MOTOR_SPEED, duration); }
@@ -67,7 +67,7 @@ void setup()
 }
 void loop()
 {
-    delay(2000); // time to put the robot down / get ready
+    delay(1000); // 1s delay for the reboot
 
     Serial.println("1 Forward");
     moveForward(ONE_METER_TIME);  // 1. Forward 100 cm
