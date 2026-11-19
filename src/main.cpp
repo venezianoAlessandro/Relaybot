@@ -8,12 +8,12 @@ const byte LEFT_BACKWARD = 9;
 
 // Separate speeds so the robot drives straight (0-255)
 // Right wheel is stronger, so it gets a lower number
-const byte RIGHT_SPEED = 200;
-const byte LEFT_SPEED = 225;
+const byte RIGHT_SPEED = 170;
+const byte LEFT_SPEED = 255;
 
 // Kick-start: both motors get full power briefly so they break free together
 const byte KICK_PWM = 255;
-const unsigned int KICK_TIME = 20; // ms, try 20-80
+const unsigned int KICK_TIME = 50; // ms, try 20-80
 
 const unsigned int ONE_METER_TIME = 3000; // ms to travel the distance
 
@@ -61,7 +61,7 @@ void stopMotors()
 // Runs both motors for a set time, then stop
 void drive(int rightSpeed, int leftSpeed, unsigned int duration)
 {
-    // Kick-start both motors at the same moment, in the right direction
+    // Kick each motor with its own strength, in the right direction
     setMotor(RIGHT_FORWARD, RIGHT_BACKWARD, rightSpeed > 0 ? KICK_PWM : -KICK_PWM);
     setMotor(LEFT_FORWARD, LEFT_BACKWARD,   leftSpeed  > 0 ? KICK_PWM : -KICK_PWM);
     delay(KICK_TIME);
@@ -72,7 +72,7 @@ void drive(int rightSpeed, int leftSpeed, unsigned int duration)
     delay(duration > KICK_TIME ? duration - KICK_TIME : 0);
 
     stopMotors();
-    delay(2000); // 2s pause so the robot settles before the next move
+    delay(2000);
 }
 
 void moveForward(unsigned int duration)  { drive( RIGHT_SPEED,  LEFT_SPEED, duration); }
