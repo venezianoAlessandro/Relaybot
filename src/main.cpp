@@ -9,7 +9,7 @@ const byte LEFT_BACKWARD = 9;
 // Separate speeds so the robot drives straight (0-255)
 // Right wheel is stronger, so it gets a lower number
 const byte RIGHT_SPEED = 170;
-const byte LEFT_SPEED = 255;
+const byte LEFT_SPEED = 225;
 
 // Kick-start: both motors get full power briefly so they break free together
 const byte KICK_PWM = 255;
@@ -26,7 +26,7 @@ struct Turn
 };
 
 // Left turn: calibrated and working
-const Turn TURN_LEFT_90  = {  RIGHT_SPEED, -LEFT_SPEED, 1300 };
+const Turn TURN_LEFT_90  = {  RIGHT_SPEED, -LEFT_SPEED, 1000 };
 
 // Right turn: starts longer because it was falling short.
 // 1300 * (225/200) ~= 1460 is just a starting guess. Calibrate it (see below).
