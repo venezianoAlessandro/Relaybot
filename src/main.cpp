@@ -26,11 +26,11 @@ struct Turn
 };
 
 // Left turn: calibrated and working
-const Turn TURN_LEFT_90  = {  RIGHT_SPEED, -LEFT_SPEED, 1000 };
+const Turn TURN_LEFT_90  = {  RIGHT_SPEED, -LEFT_SPEED, 650 };
 
 // Right turn: starts longer because it was falling short.
 // 1300 * (225/200) ~= 1460 is just a starting guess. Calibrate it (see below).
-const Turn TURN_RIGHT_90 = { -RIGHT_SPEED,  LEFT_SPEED, 1460 };
+const Turn TURN_RIGHT_90 = { -RIGHT_SPEED,  LEFT_SPEED, 780 };
 
 // speed > 0 = forward, speed < 0 = backward, 0 = stop
 void setMotor(byte forwardPin, byte backwardPin, int speed)
