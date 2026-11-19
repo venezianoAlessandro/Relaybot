@@ -13,7 +13,7 @@ const byte LEFT_SPEED = 225;
 
 // Kick-start: both motors get full power briefly so they break free together
 const byte KICK_PWM = 255;
-const unsigned int KICK_TIME = 40; // ms, try 20-80
+const unsigned int KICK_TIME = 20; // ms, try 20-80
 
 const unsigned int ONE_METER_TIME = 3000; // ms to travel the distance
 
@@ -58,7 +58,7 @@ void stopMotors()
     setMotor(LEFT_FORWARD, LEFT_BACKWARD, 0);
 }
 
-// Run both motors for a set time, then stop
+// Runs both motors for a set time, then stop
 void drive(int rightSpeed, int leftSpeed, unsigned int duration)
 {
     // Kick-start both motors at the same moment, in the right direction
