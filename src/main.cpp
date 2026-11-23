@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 int lineSensors[] = {A0, A1, A2, A3, A4, A5, A6, A7};
+int A = 0;
 
 // Motor pins
 const byte RIGHT_FORWARD = 3;
@@ -28,11 +29,11 @@ struct Turn
 };
 
 // Left turn: calibrated and working
-const Turn TURN_LEFT_90  = {  RIGHT_SPEED, -LEFT_SPEED, 650 };
+const Turn TURN_LEFT_90 = {RIGHT_SPEED, -LEFT_SPEED, 650};
 
 // Right turn: starts longer because it was falling short.
 // 1300 * (225/200) ~= 1460 is just a starting guess. Calibrate it (see below).
-const Turn TURN_RIGHT_90 = { -RIGHT_SPEED,  LEFT_SPEED, 780 };
+const Turn TURN_RIGHT_90 = {-RIGHT_SPEED, LEFT_SPEED, 780};
 
 // speed > 0 = forward, speed < 0 = backward, 0 = stop
 void setMotor(byte forwardPin, byte backwardPin, int speed)
@@ -65,7 +66,7 @@ void drive(int rightSpeed, int leftSpeed, unsigned int duration)
 {
     // Kick each motor with its own strength, in the right direction
     setMotor(RIGHT_FORWARD, RIGHT_BACKWARD, rightSpeed > 0 ? KICK_PWM : -KICK_PWM);
-    setMotor(LEFT_FORWARD, LEFT_BACKWARD,   leftSpeed  > 0 ? KICK_PWM : -KICK_PWM);
+    setMotor(LEFT_FORWARD, LEFT_BACKWARD, leftSpeed > 0 ? KICK_PWM : -KICK_PWM);
     delay(KICK_TIME);
 
     // Drop to the trimmed speeds
@@ -77,9 +78,9 @@ void drive(int rightSpeed, int leftSpeed, unsigned int duration)
     delay(2000);
 }
 
-void moveForward(unsigned int duration)  { drive( RIGHT_SPEED,  LEFT_SPEED, duration); }
+void moveForward(unsigned int duration) { drive(RIGHT_SPEED, LEFT_SPEED, duration); }
 void moveBackward(unsigned int duration) { drive(-RIGHT_SPEED, -LEFT_SPEED, duration); }
-void turn(const Turn &t)                 { drive(t.rightSpeed, t.leftSpeed, t.duration); }
+void turn(const Turn &t) { drive(t.rightSpeed, t.leftSpeed, t.duration); }
 
 void setup()
 {
@@ -111,19 +112,19 @@ void loop()
     Serial.println("6 Forward");
     moveForward(ONE_METER_TIME);
 
-    for(int i = 0; i < 7; i++)
+    for (int i = 0; i < 7; i++)
     {
         pinMode(lineSensors[i], INPUT);
     }
 
-    for(int i = 0; i < 7; i++)
+    for (int i = 0; i < 7; i++)
     {
-        int sensorValue = analogRead(lineSensors[i]);
-        Serial.print("Sensor ");
-        Serial.print(i);
-        Serial.print(": ");
-        Serial.println(sensorValue);
+        A = analogRead(lineSensors[i]);
+
     }
 
-    while (true) { stopMotors(); }
+    while (true)
+    {
+        stopMotors();
+    }
 }
