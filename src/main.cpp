@@ -1,5 +1,7 @@
 #include <Arduino.h>
 
+int lineSensors[] = {A0, A1, A2, A3, A4, A5, A6, A7};
+
 // Motor pins
 const byte RIGHT_FORWARD = 3;
 const byte RIGHT_BACKWARD = 5;
@@ -108,6 +110,25 @@ void loop()
     turn(TURN_RIGHT_90);
     Serial.println("6 Forward");
     moveForward(ONE_METER_TIME);
+
+    for(int i = 0; i < 7; i++)
+    {
+        int sensorValue = analogRead(lineSensors[i]);
+        Serial.print("Sensor ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.println(sensorValue);
+    }
+
+    for(int i = 0; i < 7; i++)
+    {
+        int sensorValue = analogRead(lineSensors[i]);
+        if(sensorValue < 500) // Adjust threshold as needed
+        {
+            Serial.print("Line detected on sensor ");
+            Serial.println(i);
+        }
+    }
 
     while (true) { stopMotors(); }
 }
