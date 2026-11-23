@@ -113,21 +113,16 @@ void loop()
 
     for(int i = 0; i < 7; i++)
     {
-        int sensorValue = analogRead(lineSensors[i]);
-        Serial.print("Sensor ");
-        Serial.print(i);
-        Serial.print(": ");
-        Serial.println(sensorValue);
+        pinMode(lineSensors[i], INPUT);
     }
 
     for(int i = 0; i < 7; i++)
     {
         int sensorValue = analogRead(lineSensors[i]);
-        if(sensorValue < 500) // Adjust threshold as needed
-        {
-            Serial.print("Line detected on sensor ");
-            Serial.println(i);
-        }
+        Serial.print("Sensor ");
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.println(sensorValue);
     }
 
     while (true) { stopMotors(); }
