@@ -1,434 +1,146 @@
-
 #include <Arduino.h>
 
-// =====================================
-// SENSORS
-// =====================================
+// Line sensors, left to right
+const int pins[8]       = {A7, A6, A5, A4, A3, A2, A1, A0};
+const int weights[8]    = {-7, -5, -3, -1, 1, 3, 5, 7};
+const int thresholds[8] = {645, 694, 654, 632, 587, 606, 535, 510};
 
-const int SENSOR_COUNT = 8;
+const int TRIG_PIN = 12, ECHO_PIN = 13;
 
-int lineSensors[SENSOR_COUNT] = {
-    A7, A6, A5, A4, A3, A2, A1, A0
+// Obstacle avoidance steps: right speed, left speed, duration (ms)
+// Duration 0 = keep going until the line is found again
+struct Step { int right, left, ms; };
+const Step steps[] = {
+  {0, 0, 150},       // stop
+  {-150, 150, 400},  // turn right
+  {170, 170, 700},   // forward
+  {150, -150, 400},  // turn left
+  {170, 170, 900},   // pass obstacle
+  {150, -150, 400},  // turn towards line
+  {130, 130, 0},     // search for line
+  {-150, 150, 400}   // align with line
 };
+const int STEP_COUNT = sizeof(steps) / sizeof(steps[0]);
 
-// Sensor weights: left to right
-int sensorWeights[SENSOR_COUNT] = {
-    -7, -5, -3, -1, 1, 3, 5, 7
-};
+int step = -1;  // -1 = normal line following
+float filtered = 0;
+int lastDir = 0, obstacleCount = 0;
+unsigned long stepTimer = 0, lastPing = 0, sharpUntil = 0, lostSince = 0, blackSince = 0;
 
-// Individual sensor thresholds
-int thresholds[SENSOR_COUNT] = {
-    645,  // A7
-    694,  // A6
-    654,  // A5
-    632,  // A4
-    587,  // A3
-    606,  // A2
-    535,  // A1
-    510   // A0
-};
-
-int sensorValues[SENSOR_COUNT];
-int sensorStates[SENSOR_COUNT];
-
-// =====================================
-// MOTOR PINS
-// =====================================
-
-const byte RIGHT_FORWARD = 3;
-const byte RIGHT_BACKWARD = 5;
-const byte LEFT_FORWARD = 6;
-const byte LEFT_BACKWARD = 9;
-
-// Calibrated motor speeds
-const int RIGHT_BASE_SPEED = 170;
-const int LEFT_BASE_SPEED = 225;
-
-// =====================================
-// STEERING SETTINGS
-// =====================================
-
-const float CENTER_OFFSET = 2.0;
-
-// Normal steering
-const float Kp = 20.0;
-
-// Sharp-turn steering
-const float SHARP_KP = 65.0;
-
-// Sensor filtering
-const float FILTER_STRENGTH = 0.25;
-const float SHARP_FILTER_STRENGTH = 0.85;
-
-// Sharp-turn detection duration
-const unsigned long SHARP_SENSITIVITY_TIME = 700;
-unsigned long sharpTurnUntil = 0;
-
-// Line position and calculations
-float linePosition = 0;
-float filteredError = 0;
-
-float error = 0;
-float correction = 0;
-
-// Motor speeds
-int rightMotorSpeed = 0;
-int leftMotorSpeed = 0;
-
-const int MAX_SPEED = 255;
-const int MIN_SPEED = 90;
-
-const int STRAIGHT_BOOST = 15;
-
-// Remember last direction
-int lastLineDirection = 0;
-
-// Recovery settings
-const unsigned long GAP_GRACE_TIME = 200;
-unsigned long lostLineTime = 0;
-
-// Sharper recovery turn
-const int SEARCH_FAST = 240;
-const int SEARCH_SLOW = 70;
-
-// =====================================
-// ALL-BLACK STOP DETECTION
-// =====================================
-
-const unsigned long ALL_BLACK_STOP_TIME = 200;
-
-unsigned long allBlackStartTime = 0;
-
-bool allBlackTimerRunning = false;
-bool stoppedOnAllBlack = false;
-// =====================================
-// REVERSE AFTER STOP
-// =====================================
-
-const unsigned long REVERSE_DELAY = 200;
-const unsigned long REVERSE_TIME = 1000;
-
-unsigned long stopTime = 0;
-
-bool reverseStarted = false;
-bool reverseFinished = false;
-
-// =====================================
-// MOTOR CONTROL
-// =====================================
-
-void setMotor(byte forwardPin, byte backwardPin, int speed)
-{
-    if (speed > 0)
-    {
-        analogWrite(forwardPin, speed);
-        analogWrite(backwardPin, 0);
-    }
-    else if (speed < 0)
-    {
-        analogWrite(forwardPin, 0);
-        analogWrite(backwardPin, -speed);
-    }
-    else
-    {
-        analogWrite(forwardPin, 0);
-        analogWrite(backwardPin, 0);
-    }
+// Right: pins 3 (fwd) / 5 (back). Left: pins 6 (fwd) / 9 (back)
+void drive(int right, int left) {
+  analogWrite(3, constrain(right, 0, 255));
+  analogWrite(5, constrain(-right, 0, 255));
+  analogWrite(6, constrain(left, 0, 255));
+  analogWrite(9, constrain(-left, 0, 255));
 }
 
-void stopMotors()
-{
-    setMotor(RIGHT_FORWARD, RIGHT_BACKWARD, 0);
-    setMotor(LEFT_FORWARD, LEFT_BACKWARD, 0);
+// Distance in cm (999 = nothing detected)
+float getDistance() {
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  unsigned long duration = pulseIn(ECHO_PIN, HIGH, 25000);
+  return duration ? duration * 0.0343 / 2 : 999;
 }
 
-// =====================================
-// READ SENSORS
-// =====================================
-
-void readSensors()
-{
-    for (int i = 0; i < SENSOR_COUNT; i++)
-    {
-        sensorValues[i] = analogRead(lineSensors[i]);
-
-        sensorStates[i] =
-            sensorValues[i] > thresholds[i] ? 1 : 0;
+// Sum of weights of sensors on the line, and how many see it
+void readLine(int &total, int &active) {
+  total = active = 0;
+  for (int i = 0; i < 8; i++) {
+    if (analogRead(pins[i]) > thresholds[i]) {
+      total += weights[i];
+      active++;
     }
+  }
 }
 
-// =====================================
-// CALCULATE LINE POSITION
-// =====================================
-
-float calculatePosition()
-{
-    int total = 0;
-    int activeSensors = 0;
-
-    for (int i = 0; i < SENSOR_COUNT; i++)
-    {
-        if (sensorStates[i] == 1)
-        {
-            total += sensorWeights[i];
-            activeSensors++;
-        }
-    }
-
-    // No black detected
-    if (activeSensors == 0)
-    {
-        return 999;
-    }
-
-    // All black: treat as a marker
-    if (activeSensors == SENSOR_COUNT)
-    {
-        return CENTER_OFFSET;
-    }
-
-    return (float)total / activeSensors;
+void setup() {
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(3, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(9, OUTPUT);
+  drive(0, 0);
 }
 
-// =====================================
-// FOLLOW LINE
-// =====================================
+void loop() {
+  unsigned long now = millis();
+  int total, active;
+  readLine(total, active);
 
-void followLine()
-{
-    error = linePosition - CENTER_OFFSET;
-
-    // Detect a sharp turn
-    if (error <= -2.0 || error >= 2.0)
-    {
-    sharpTurnUntil = millis() + SHARP_SENSITIVITY_TIME;
+  // --- Obstacle avoidance in progress ---
+  if (step >= 0) {
+    drive(steps[step].right, steps[step].left);
+    bool done = steps[step].ms ? now - stepTimer >= steps[step].ms : active > 0;
+    if (done) {
+      stepTimer = now;
+      if (++step == STEP_COUNT) {  // finished, back to line following
+        step = -1;
+        filtered = lastDir = 0;
+        sharpUntil = lostSince = blackSince = 0;
+        drive(0, 0);
+      }
     }
+    return;
+  }
 
-    // Check whether sharp-turn mode is active
-    bool sharpMode = (long)(sharpTurnUntil - millis()) > 0;
-
-    // React faster during sharp turns
-    float filterStrength = sharpMode
-        ? SHARP_FILTER_STRENGTH
-        : FILTER_STRENGTH;
-
-    filteredError += filterStrength *
-                     (error - filteredError);
-
-    // Stronger steering during sharp turns
-    float steeringStrength = sharpMode
-        ? SHARP_KP
-        : Kp;
-
-    correction = steeringStrength * filteredError;
-    // Extra correction for right turns
-    if (filteredError > 2.0)
-    {
-        correction *= 1.25;
+  // --- Obstacle detection (two readings in a row) ---
+  if (now - lastPing >= 60) {
+    lastPing = now;
+    obstacleCount = (getDistance() <= 20) ? obstacleCount + 1 : 0;
+    if (obstacleCount >= 2) {
+      obstacleCount = 0;
+      step = 0;
+      stepTimer = now;
+      return;
     }
+  }
 
-    // Remember the last direction
-    if (filteredError < -0.5)
-    {
-        lastLineDirection = -1;
+  // --- All black for 200 ms: stop, reverse, and finish ---
+  if (active == 8) {
+    if (blackSince == 0) blackSince = now;
+    if (now - blackSince >= 200) {
+      drive(0, 0);
+      delay(200);
+      drive(-170, -225);
+      delay(1000);
+      drive(0, 0);
+      while (true);
     }
-    else if (filteredError > 0.5)
-    {
-        lastLineDirection = 1;
-    }
+  } else {
+    blackSince = 0;
+  }
 
-    // Speed boost only on straight sections
-    int boost = 0;
+  // --- Lost line ---
+  if (active == 0) {
+    if (lostSince == 0) lostSince = now;
+    if (now - lostSince < 200) return;
+    if (lastDir < 0)      drive(240, 70);
+    else if (lastDir > 0) drive(70, 240);
+    else                  drive(170, 225);
+    return;
+  }
+  lostSince = 0;
 
-    if (filteredError > -1.0 &&
-        filteredError < 1.0 &&
-        !sharpMode)
-    {
-        boost = STRAIGHT_BOOST;
-    }
+  // --- Line following ---
+  float error = (float)total / active - 2.0;
+  if (abs(error) >= 2.0) sharpUntil = now + 700;
+  bool sharp = now < sharpUntil;
 
-    // Calculate motor speeds
-    rightMotorSpeed =
-        RIGHT_BASE_SPEED + boost - correction;
+  filtered += (sharp ? 0.85 : 0.25) * (error - filtered);
 
-    leftMotorSpeed =
-        LEFT_BASE_SPEED + boost + correction;
+  float correction = (sharp ? 65 : 20) * filtered;
+  if (filtered > 2.0) correction *= 1.25;
 
-    // Allow tighter turns without reversing
-    rightMotorSpeed = constrain(
-        rightMotorSpeed, MIN_SPEED, MAX_SPEED
-    );
+  if (filtered < -0.5)     lastDir = -1;
+  else if (filtered > 0.5) lastDir = 1;
 
-    leftMotorSpeed = constrain(
-        leftMotorSpeed, MIN_SPEED, MAX_SPEED
-    );
+  int boost = (abs(filtered) < 1.0 && !sharp) ? 15 : 0;
 
-    setMotor(
-        RIGHT_FORWARD,
-        RIGHT_BACKWARD,
-        rightMotorSpeed
-    );
-
-    setMotor(
-        LEFT_FORWARD,
-        LEFT_BACKWARD,
-        leftMotorSpeed
-    );
-}
-
-// =====================================
-// RECOVER LOST LINE
-// =====================================
-
-void recoverLine()
-{
-    if (lostLineTime == 0)
-    {
-        lostLineTime = millis();
-    }
-
-    // Briefly continue previous movement
-    if (millis() - lostLineTime < GAP_GRACE_TIME)
-    {
-        return;
-    }
-
-    // Sharper recovery in last known direction
-    if (lastLineDirection < 0)
-    {
-        rightMotorSpeed = SEARCH_FAST;
-        leftMotorSpeed = SEARCH_SLOW;
-    }
-    else if (lastLineDirection > 0)
-    {
-        rightMotorSpeed = SEARCH_SLOW;
-        leftMotorSpeed = SEARCH_FAST;
-    }
-    else
-    {
-        rightMotorSpeed = RIGHT_BASE_SPEED;
-        leftMotorSpeed = LEFT_BASE_SPEED;
-    }
-
-    setMotor(RIGHT_FORWARD, RIGHT_BACKWARD, rightMotorSpeed);
-    setMotor(LEFT_FORWARD, LEFT_BACKWARD, leftMotorSpeed);
-}
-
-bool allSensorsBlack()
-{
-    for (int i = 0; i < SENSOR_COUNT; i++)
-    {
-        if (sensorStates[i] == 0)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-// =====================================
-// SETUP
-// =====================================
-
-void setup()
-{
-    Serial.begin(9600);
-
-    pinMode(RIGHT_FORWARD, OUTPUT);
-    pinMode(RIGHT_BACKWARD, OUTPUT);
-    pinMode(LEFT_FORWARD, OUTPUT);
-    pinMode(LEFT_BACKWARD, OUTPUT);
-
-    stopMotors();
-}
-
-// =====================================
-// MAIN LOOP
-// =====================================
-
-void loop()
-{
-    // If the robot has finished reversing, remain stopped
-    if (reverseFinished)
-    {
-        stopMotors();
-        return;
-    }
-
-    // If the all-black stop condition was triggered
-    if (stoppedOnAllBlack)
-    {
-        // Wait briefly before reversing
-        if (!reverseStarted)
-        {
-            if (millis() - stopTime >= REVERSE_DELAY)
-            {
-                // Reverse both motors
-                setMotor(
-                    RIGHT_FORWARD,
-                    RIGHT_BACKWARD,
-                    -RIGHT_BASE_SPEED
-                );
-
-                setMotor(
-                    LEFT_FORWARD,
-                    LEFT_BACKWARD,
-                    -LEFT_BASE_SPEED
-                );
-
-                reverseStarted = true;
-                stopTime = millis();
-            }
-
-            return;
-        }
-
-        // Reverse for one second
-        if (millis() - stopTime >= REVERSE_TIME)
-        {
-            stopMotors();
-            reverseFinished = true;
-        }
-
-        return;
-    }
-
-    readSensors();
-
-    // Check whether all sensors detect black
-    if (allSensorsBlack())
-    {
-        if (!allBlackTimerRunning)
-        {
-            allBlackStartTime = millis();
-            allBlackTimerRunning = true;
-        }
-
-        if (millis() - allBlackStartTime >= ALL_BLACK_STOP_TIME)
-        {
-            stopMotors();
-
-            stoppedOnAllBlack = true;
-            stopTime = millis();
-
-            return;
-        }
-    }
-    else
-    {
-        allBlackTimerRunning = false;
-    }
-
-    linePosition = calculatePosition();
-
-    if (linePosition == 999)
-    {
-        recoverLine();
-    }
-    else
-    {
-        lostLineTime = 0;
-        followLine();
-    }
+  drive(constrain(170 + boost - correction, 90, 255),
+        constrain(225 + boost + correction, 90, 255));
 }
